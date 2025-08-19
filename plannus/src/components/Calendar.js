@@ -1,84 +1,91 @@
-import React, { Component } from "react"
+import { TableBody } from "@mui/material"
+import React, { Component, useEffect } from "react"
 import Table from 'react-bootstrap/Table'
+import TableHead from '@mui/material/TableHead'
+import TableRow from '@mui/material/TableRow'
+import TableCell from '@mui/material/TableCell'
+import TableContainer from '@mui/material/TableContainer'
 import CalendarDay from './CalendarDay'
 
-class Calendar extends Component {
-    constructor(props) {
-        super(props)
-        this.state = {
-            currMonth: this.props.currMonth,
-            startDays: [7, 3, 5, 1],
-            dayLen: [31, 31, 30, 31, 30],
-            monthLen: [6, 5, 5, 5]
-        }
-    }
+function Calendar(props) {
+    const [days, setDays] = React.useState(['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'])
 
-    componentDidUpdate(prevProps) {
-        if (prevProps.currMonth != this.props.currMonth) {
-            this.setState({currMonth: this.props.currMonth})
-        }
-    }
-
-    genHead() {
-        const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-        const daysRow = days.map(day => <th key={day}>{day}</th>)
-        return (<thead>
-                    <tr style={{textAlign:'center'}}>
-                        {daysRow}
-                    </tr>
-                </thead>)
-    }
-
-    genBody() {
-        const start = this.state.startDays[this.state.currMonth]; // 1st Aug is on a Saturday
-        const len = this.state.monthLen[this.state.currMonth];
-        const defaultStyle = {color: '#a2b2d3', fontSize: 20, opacity:'50%', textAlign:'center'}
-        let datesRow = [];
-        for (let x = 0; x < len; x++) {
-            let dateRow = [];
-            for (let y = 1; y <= 7; y++) {
-                let date = y+(x*7)-(start-1);
-                if (x == 0 && y < start) {
-                    date += this.state.dayLen[this.state.currMonth];
-                    let key = this.state.currMonth+7+"-"+date
-                    dateRow.push(<th key={key}> <div style={defaultStyle}> {date} </div> </th>)
-                } else if (date > this.state.dayLen[this.state.currMonth+1]) {
-                    date -= this.state.dayLen[this.state.currMonth+1];
-                    let key = this.state.currMonth+9+"-"+date
-                    dateRow.push(<th key={key}> <div style={defaultStyle}> {date} </div> </th>)
-                } else {
-                    let key = this.state.currMonth+8+"-"+date
-                    dateRow.push(<th key={key}> <CalendarDay taskDB={this.props.taskDB} deadlineDB={this.props.deadlineDB} fullDate={this.computeFullDate(date)} updateDiaryDatabase={this.props.updateDiaryDatabase} diaryDB={this.props.diaryDB}/> </th>);
-                } 
-            }
-            datesRow.push(<tr key={this.state.currMonth+"row"+x}>{dateRow}</tr>);
-        }
-        return (<tbody>
-                    {datesRow}
-                </tbody>)
-    }
-
-    computeFullDate(day) {
-        // given a day and a month, represent it in a string of "xx-xx-xxxx" format
-        let fullDate = "";
-        if (day < 10) {
-            fullDate += "0";
-        }
-        fullDate += (day + "-");
-        let month = this.state.currMonth+8;
-        fullDate += month>=10 ? month+"-" : "0"+month+"-";
-        fullDate += ("2020");
-        return fullDate;
-    }
-
-    render() {
+    const head = () => {
         return (
-            <Table variant style={{width:'85%', tableLayout:'fixed'}}>
-                {this.genHead()}
-                {this.genBody()}
-            </Table>
+            <TableHead>
+                <TableRow>
+                    {days.map(day => <TableCell align="center"> {day} </TableCell>)}
+                </TableRow>
+            </TableHead>
         )
     }
+
+    const fillBeforeMonth = (row, dayOfWeek, date) => {
+        for (let i = 0; i < dayOfWeek; i++) {
+            const defaultStyle = {color: '#a2b2d3', fontSize: 20, opacity:'50%', textAlign:'center'}
+            const beforeDate = new Date(date)
+            beforeDate.setDate(date.getDate()-(dayOfWeek-i))
+            row.push(<TableCell>
+                <div style={defaultStyle}> {beforeDate.getDate()} </div>
+                </TableCell>
+            )
+        }
+    }
+
+    const fillAfterMonth = (row, dayOfWeek) => {
+        for (let i = dayOfWeek; i < 7; i++) {
+            const defaultStyle = {color: '#a2b2d3', fontSize: 20, opacity:'50%', textAlign:'center'}
+            row.push(<TableCell>
+                <div style={defaultStyle}> {i-dayOfWeek+1} </div>
+                </TableCell>)
+        }
+    }
+
+    const formatDate = (date) => {
+        let day = date.getDate()
+        if (day < 10) {
+            day = '0'+day
+        }
+        let month = date.getMonth()+1
+        if (month < 10) {
+            month = '0'+month
+        }
+        const year = date.getFullYear()
+        return `${year}-${month}-${day}`
+    }
+
+    const body = () => {
+        const rows = []
+        let row = []
+        let date = new Date(2022, props.month-1, 1)
+        fillBeforeMonth(row, date.getDay(), date)
+        while (date.getMonth() < props.month) {
+            if (row.length === 7) {
+                rows.push(<TableRow> {row} </TableRow>)
+                row = []
+            }
+            row.push(<TableCell>
+                <CalendarDay date={formatDate(date)} dayOfWeek={days[date.getDay()]} day={date.getDate()}/>
+            </TableCell>)
+            const nextDay = new Date(date)
+            nextDay.setDate(date.getDate()+1)
+            date = nextDay
+        }
+        if (row.length < 7) {
+            fillAfterMonth(row, date.getDay())
+            rows.push(<TableRow> {row} </TableRow>)
+        }
+        return <TableBody> {rows} </TableBody>
+    }
+
+    return (
+        <TableContainer>
+            <Table>
+                {head()}
+                {body()}
+            </Table>
+        </TableContainer>
+    )
 }
 
 export default Calendar

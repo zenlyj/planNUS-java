@@ -1,82 +1,89 @@
-import React, { Component } from "react";
+import React, { useEffect } from "react";
 import Timetable from './components/Timetable'
 import Button from 'react-bootstrap/Button'
-import moduleslist from './api/moduleslist.json'
-import AutoComplete from './components/AutoComplete'
-import nusmodsAPI from './api/nusmodsAPI'
+import Alert from "@mui/material/Alert";
 import AutomatedScheduler from './components/AutomatedScheduler'
-import Deadline from './components/Deadline'
-import ImportInput from './components/ImportInput'
+import DeadlineList from './components/DeadlineList'
+import TaskImport from './components/TaskImport'
+import api from './api/backendInterface'
+import session from "./SessionUtil"
 
-class Home extends Component {
-    constructor(props) {
-        super(props)
-        this.state = {
-            weekNum: this.props.currWeek,
-            timetables: this.props.initHome,
-            deadlines: this.props.deadlineDB
-        }
-        this.navWeek = this.navWeek.bind(this)
-        this.submitURL = this.submitURL.bind(this)
-    }
+function Home(props) {
+    const [tasks, setTasks] = React.useState([])
+    const [deadlines, setDeadlines] = React.useState([])
+    const [weekNum, setWeekNum] = React.useState(1)
+    const [toDisplayAlert, setToDisplayAlert] = React.useState(false)
+    const [alertMessage, setAlertMessage] = React.useState('')
 
-    submitURL(url) {
-        this.props.submitURL(url, this.state.weekNum)
-    }
+    useEffect(() => {
+        getTasks()
+        getDeadlines()
+    }, [])
 
-    navWeek(diff) {
+    const navWeek = (diff) => {
         // allow user to navigate between week 1 and 13
-        this.setState(prevState => {
-            if (prevState.weekNum===1 && diff===-1) {
-                return {weekNum: prevState.weekNum}
-            } else if (prevState.weekNum===13 && diff===1) {
-                return {weekNum: prevState.weekNum}
+        let updated = weekNum+diff
+        if (updated <= 0) {
+            updated = weekNum
+        }
+        if (updated > 13) {
+            updated = 13
+        }
+        setWeekNum(updated)
+    }
+
+    const getTasks = () => {
+        const studentId = session.studentId()
+        api.getStudentTasks(studentId).then(response => {
+            if (response.status === 200) {
+                const newTasks = JSON.parse(response.data)
+                setTasks(newTasks)
             } else {
-                return {weekNum: prevState.weekNum+diff}
+                setToDisplayAlert(true)
+                setAlertMessage('Internal server error: Unable to fetch data')
             }
         })
     }
 
-    retrieveTasks() {
-        let tasksAdded = new Map()
-        if (this.state.timetables.has(this.state.weekNum)) {
-            tasksAdded = this.state.timetables.get(this.state.weekNum)
-        }
-        return tasksAdded
+    const getDeadlines = () => {
+        const studentId = session.studentId()
+        api.getStudentDeadlines(studentId).then(response => {
+            if (response.status === 200) {
+                const header = [{isHeader:true}]
+                const retreivedDeadlines = JSON.parse(response.data)
+                setDeadlines(header.concat(retreivedDeadlines))
+            } else {
+                setToDisplayAlert(true)
+                setAlertMessage('Internal server error: Unable to fetch data')
+            }
+        })
     }
 
-    retrieveDeadlines() {
-        let deadlines
-        let arr = []
-        for (let key of this.state.deadlines.keys()) {
-            arr.push(key)
-        }
-        arr.sort()
-        deadlines = arr.map(key => this.state.deadlines.get(key))
-        return deadlines
+    const refresh = () => {
+        getTasks()
+        getDeadlines()
+        setAlertMessage('')
+        setToDisplayAlert(false)
     }
 
-    render() {
-        let tasksAdded = this.retrieveTasks()
-        let deadlines = this.retrieveDeadlines()
-        return (
-            <React.Fragment>
-                <div style={{width:'100%', marginTop:'2%'}}> 
-                    <Button variant="outline-dark" style={{float:'left', marginLeft:'30%', width:'2.5%'}} onClick={()=>this.navWeek(-1)}> {'<'} </Button>
-                    <h3 style={{float:'left', textAlign:'center', marginLeft:'2%', width:'10%', color:'#404040'}}> {'Week ' + this.state.weekNum} </h3> 
-                    <Button variant="outline-dark" style={{float:'left', marginLeft:"2%", width:'2.5%'}} onClick={()=>this.navWeek(1)}> {'>'} </Button>
-                </div>
-                <div style={{marginLeft:'13%', paddingTop:'2%'}}>
-                    <div style={{marginLeft:'80%', paddingBottom:'1%'}}> <ImportInput submitURL={this.submitURL} /> </div>
-                </div>
-                <div style={{marginLeft:'13%', width:'87%'}}>
-                        <div style={{display: 'inline-block', width:'85%'}}> <Timetable id={this.state.weekNum} tasksAdded={tasksAdded} updateTaskDatabase={this.props.updateTaskDatabase} loggedIn={this.props.loggedIn} /> </div>
-                        <div style={{display: 'inline-block', verticalAlign:'top', marginLeft:'3%', width:'12%'}}> <Deadline deadlines={deadlines} updateDLDatabase={this.props.updateDLDatabase}/> </div>
-                </div>
-                <div style={{marginLeft:'14%'}}> <AutomatedScheduler key={this.state.weekNum} id={this.state.weekNum} automateSchedule={this.props.automateSchedule} /> </div>
-            </React.Fragment>
-        )
-    }
+    return (
+        <div>
+            {toDisplayAlert ? <Alert severity="error"> {alertMessage} </Alert> : null}
+            <div style={{width:'100%', marginTop:'2%'}}> 
+                <Button variant="outline-dark" style={{float:'left', marginLeft:'30%', width:'2.5%'}} onClick={()=>navWeek(-1)}> {'<'} </Button>
+                <h3 style={{float:'left', textAlign:'center', marginLeft:'2%', width:'10%', color:'#404040'}}> {'Week ' + weekNum} </h3> 
+                <Button variant="outline-dark" style={{float:'left', marginLeft:"2%", width:'2.5%'}} onClick={()=>navWeek(1)}> {'>'} </Button>
+            </div>
+            <div style={{marginLeft:'13%', paddingTop:'2%'}}>
+                <div style={{marginLeft:'80%', paddingBottom:'1%'}}> <TaskImport refresh={refresh}/> </div>
+            </div>
+            <div style={{marginLeft:'13%', width:'87%', height: '70vh'}}>
+                    <div style={{display: 'inline-block', width:'85%'}}> <Timetable id={weekNum} week={weekNum} tasks={tasks} refresh={refresh}/> </div>
+                    <div style={{display: 'inline-block', verticalAlign:'top', marginLeft:'3%', width:'12%', height: '100%'}}> <DeadlineList deadlines={deadlines} refresh={refresh}/> </div>
+            </div>
+            {/* <div style={{marginLeft:'14%'}}> <AutomatedScheduler key={weekNum} id={weekNum} automateSchedule={props.automateSchedule} /> </div> */}
+        </div>
+    )
 }
 
 export default Home

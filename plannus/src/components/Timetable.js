@@ -1,156 +1,144 @@
-import React, { Component } from 'react'
-import Table from 'react-bootstrap/Table'
+import React, { Component, useEffect } from 'react'
+import Table from '@mui/material/Table';
+import TableBody from '@mui/material/TableBody';
+import TableCell from '@mui/material/TableCell';
+import TableContainer from '@mui/material/TableContainer';
+import TableHead from '@mui/material/TableHead';
+import TableRow from '@mui/material/TableRow';
 import Task from './Task'
-import nusmodsAPI from '../api/nusmodsAPI';
+import api from '../api/backendInterface';
+import { grey } from '@mui/material/colors';
 
-class Timetable extends Component {
-    
-    constructor(props) {
-        super(props);
-        this.state = {
-            id: this.props.id,
-            tasksAdded: this.props.tasksAdded
+function Timetable(props) {
+    const [times, setTimes] = React.useState([])
+    const [dates, setDates] = React.useState([])
+
+    useEffect(() => {
+        const res = []
+        const start = 8
+        const end = 21
+        for (let i = start; i <= end; i++) {
+            res.push(i < 10 ? `0${i}00` : `${i}00`)
         }
-        this.updateTable = this.updateTable.bind(this)
+        setTimes(res)        
+    }, [])
+
+    useEffect(() => {
+        const weeks = []
+        let day = new Date(2022,7,8)
+        weeks.push(null)
+        for (let i = 1; i <= 13; i++) {
+            const week = []
+            for (let j = 0; j < 7; j++) {
+                const nextDay = new Date(day)
+                nextDay.setDate(day.getDate()+1)
+                week.push(day)
+                day = nextDay
+            }
+            if (i === 6) {
+                // recess week
+                const afterReccess = new Date(day)
+                afterReccess.setDate(day.getDate()+7)
+                day = afterReccess
+            }
+            weeks.push(week)
+        }
+        setDates(weeks)        
+    }, [])
+
+    const findTask = (date, timeFrom) => {
+        return props.tasks.find(task => task.date === date && task.timeFrom === timeFrom)
     }
 
-    componentDidUpdate(prevProps) {
-        if (prevProps.id !== this.props.id) {
-            this.setState({id: this.props.id})
+    const findDate = (week, dayIndex) => {
+        const taskDate = dates[week][dayIndex]
+        const year = taskDate.getFullYear()
+        let month = taskDate.getMonth()+1
+        let day = taskDate.getDate()
+        if (month < 10) {
+            month = '0' + month
         }
-        for (let key of prevProps.tasksAdded.keys()) {
-            let curr = this.props.tasksAdded.get(key)
-            let prev = prevProps.tasksAdded.get(key)
-            if (curr === undefined) {
-                this.setState({tasksAdded: this.props.tasksAdded})
-                break
-            }
-            this.compareTasks(prev, curr)
+        if (day < 10) {
+            day = '0' + day
         }
-
-        for (let key of this.props.tasksAdded.keys()) {
-            let curr = this.props.tasksAdded.get(key)
-            let prev = prevProps.tasksAdded.get(key)
-            if (prev === undefined) {
-                this.setState({tasksAdded: this.props.tasksAdded})
-                break
-            }
-            this.compareTasks(prev, curr)
-        }
+        return `${year}-${month}-${day}`
     }
 
-    compareTasks(prev, curr) {
-        if ((prev.taskPresent !== curr.taskPresent) || 
-            (prev.taskName !== curr.taskName) || 
-            (prev.module !== curr.module) ||
-            (prev.timeTo !== curr.timeTo) ||
-            (prev.description !== curr.description)
-            ) {
-                this.setState({tasksAdded: this.props.tasksAdded})
-            }
-    }
-
-    updateTable(updatedTask) {
-        let updated = new Map(this.state.tasksAdded)
-        if (updatedTask.taskPresent) {
-            if (this.state.tasksAdded.has(updatedTask.id)) {
-                // edit task info
-                updated.delete(updatedTask.id)
-                updated.set(updatedTask.id, updatedTask)
-                if (this.props.loggedIn) {
-                    nusmodsAPI.removeTask(updatedTask.id, this.state.id)
-                    nusmodsAPI.addTask(updatedTask.id, updatedTask.taskPresent, updatedTask.taskName, updatedTask.module,
-                        updatedTask.timeFrom, updatedTask.timeTo, updatedTask.description, this.state.id)
-                }
-            } else {
-                // add brand new task
-                updated.set(updatedTask.id, updatedTask)
-                if (this.props.loggedIn) {
-                    nusmodsAPI.addTask(updatedTask.id, updatedTask.taskPresent, updatedTask.taskName, updatedTask.module,
-                        updatedTask.timeFrom, updatedTask.timeTo, updatedTask.description, this.state.id)
-                }
-            }
-        } else {
-            // to delete task from table
-            updated.delete(updatedTask.id)
-            if (this.props.loggedIn) {
-                nusmodsAPI.removeTask(updatedTask.id, this.state.id)
-            }
+    const head = () => {
+        const cellVal = []
+        cellVal.push(
+            <TableCell align="left">
+                FROM <br /> TO
+            </TableCell>
+        )
+        for (let i = 0; i < times.length-1; i++) {
+            const fromHour = times[i]
+            const toHour = times[i+1]
+            cellVal.push(
+                <TableCell align="center">
+                    {fromHour} <br /> {toHour}
+                </TableCell>
+            )
         }
-        this.props.updateTaskDatabase(this.state.id, updated)
-    }
-
-    genTableHead() {
-        let hours = []
-        hours.push(<th key="h0000">{"FROM"} <br /> {"TO"}</th>)
-        for (let x = 8; x <= 20; x++) {
-            let from = "00";
-            let to = "00"
-            if (x < 10) {
-                from = "0" + x + from;
-                x < 9 ? to = "0" + (x+1) + to : to = (x+1) + to
-            } else {
-                from = x + from;
-                to = (x+1) + to;
-            }
-            hours.push(<th style={{textAlign:'center'}} key={"h"+from}>
-                {from} <br /> {to}</th>)
-        }
-        return (<thead>
-                    <tr>
-                        {hours}
-                    </tr>
-                </thead>)
-    }
-
-    genTableBody() {
-        let days = ["MON", "TUES", "WED", "THURS", "FRI", "SAT", "SUN"]
-        let daysRows = days.map(day => {
-            let row = []
-            row.push(<td key={day+"0"}>{day}</td>)
-            for (let x = 1; x <= 13; x++) {
-                let cellKey = day+x
-                let colSpan = 1
-                let initTask = {}
-                if (this.state.tasksAdded.has(cellKey)) {
-                    // determine length of button representing task on timetable
-                    let task = this.state.tasksAdded.get(cellKey)
-                    colSpan = (task.timeTo-task.timeFrom)/100
-                    colSpan = Math.ceil(colSpan)
-                    // initialize task if it has been added previously
-                    initTask = task
-                } else {
-                    // default task initialization
-                    initTask = {
-                        id: cellKey,
-                        taskPresent: false,
-                        taskName: "",
-                        module: "",
-                        timeFrom: x===1 ? '0'+(x+7)*100 : ""+(x+7)*100,
-                        timeTo: "",
-                        description: ""
-                    }
-                }
-                row.push(<td key={cellKey} colSpan={colSpan}> 
-                            <Task initTask={initTask} updateTable={this.updateTable} />
-                        </td>)
-                x += (colSpan-1)
-            }
-            return <tr key={day}>{row}</tr>
-        });
-        return (<tbody>
-                    {daysRows}
-                </tbody>)
-    }
-
-    render() {
         return (
-            <Table striped bordered hover variant="light" style={{tableLayout:'fixed'}}>
-                {this.genTableHead()}
-                {this.genTableBody()}
-            </Table>
+            <TableHead>
+                <TableRow>
+                    {cellVal}
+                </TableRow>
+            </TableHead>
         )
     }
+
+    const body = () => {
+        const days = ['MON', 'TUES', 'WED', 'THURS', 'FRI', 'SAT', 'SUN']
+        const rows = []
+        days.map(day => {
+            const cells = []
+            cells.push(<TableCell align="left"> {day} </TableCell>)
+            for (let i = 0; i < times.length-1; i++) {
+                const startTime = times[i]
+                const date = findDate(props.week, days.indexOf(day))
+                const task = findTask(date, startTime)
+                const taskPresent = task ? true : false
+                const name = taskPresent ? task.name : ''
+                const module = taskPresent ? task.module : ''
+                const timeFrom = startTime
+                const timeTo = taskPresent ? task.timeTo : ''
+                const description = taskPresent ? task.description : ''
+                const colSpan = (timeTo-timeFrom)/100
+                if (colSpan > 1) {
+                    i += (colSpan-1)
+                }
+                cells.push(<TableCell sx={{borderLeft:1, borderLeftColor:'success.light', maxWidth:'8em'}} align="center" colSpan={colSpan}>
+                    <Task id={taskPresent ? task.id : null} 
+                            taskPresent={taskPresent} 
+                            name={name} 
+                            module={module} 
+                            timeFrom={timeFrom} 
+                            timeTo={timeTo} 
+                            description={description} 
+                            date={date}
+                            refresh={props.refresh}
+                    />
+                </TableCell>)
+            }
+            const isEvenRow = days.indexOf(day)%2==0
+            const color = isEvenRow ? 'grey.300' : 'grey.100'
+            rows.push(<TableRow sx={{backgroundColor: color}}> {cells} </TableRow>)
+        })
+        return (
+            <TableBody> {rows} </TableBody>
+        )
+    }
+    
+    return (
+        <TableContainer>
+            <Table>
+                {head()}
+                {body()}
+            </Table>
+        </TableContainer>
+    )
 }
 
 export default Timetable

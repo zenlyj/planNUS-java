@@ -6,7 +6,6 @@ import Tabs from 'react-bootstrap/Tabs'
 import Tab from 'react-bootstrap/Tab'
 import InputRange from 'react-input-range'
 import AutoComplete from './AutoComplete'
-import nusmodsAPI from '../api/nusmodsAPI'
 import PulseLoader from 'react-spinners/PulseLoader'
 
 class FormTab extends Component {
@@ -166,7 +165,7 @@ class AutomatedScheduler extends Component {
     
     openModal() {
         this.setState({loading:true});
-        nusmodsAPI.retrieveDistinctModule(this.state.week == undefined ? 1 : this.state.week).then(result => this.setState({distinctmodules: result, loading:false}));
+        // nusmodsAPI.retrieveDistinctModule(this.state.week == undefined ? 1 : this.state.week).then(result => this.setState({distinctmodules: result, loading:false}));
         this.setState({ open: true });
     }
     
@@ -189,7 +188,7 @@ class AutomatedScheduler extends Component {
                 modules: newModules
             });
         }
-        nusmodsAPI.calculateWorkload(this.state.week, this.state.modules).then(hrs => {this.setState({calculatedWorkload: hrs, loading: false})});
+        // nusmodsAPI.calculateWorkload(this.state.week, this.state.modules).then(hrs => {this.setState({calculatedWorkload: hrs, loading: false})});
     }
 
     removeModule(mc) {
@@ -198,7 +197,7 @@ class AutomatedScheduler extends Component {
         this.setState({
             modules: newModules
         });
-        nusmodsAPI.calculateWorkload(this.state.week, newModules).then(hrs => this.setState({calculatedWorkload: hrs, loading: false}));
+        // nusmodsAPI.calculateWorkload(this.state.week, newModules).then(hrs => this.setState({calculatedWorkload: hrs, loading: false}));
     }
 
     updateState(newState) {
