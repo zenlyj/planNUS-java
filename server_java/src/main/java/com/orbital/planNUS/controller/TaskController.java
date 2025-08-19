@@ -1,7 +1,9 @@
 package com.orbital.planNUS.controller;
 
 import com.orbital.planNUS.dto.task.TaskCreate;
+import com.orbital.planNUS.dto.task.TaskImport;
 import com.orbital.planNUS.dto.task.TaskUpdate;
+import com.orbital.planNUS.dto.task.TaskWorkloadView;
 import com.orbital.planNUS.model.Task;
 import com.orbital.planNUS.service.TaskService;
 import org.springframework.web.bind.annotation.*;
@@ -22,9 +24,20 @@ public class TaskController {
     return taskService.getTasksByStudentId(studentId);
   }
 
+  @GetMapping("workload")
+  public List<TaskWorkloadView> getTaskWorkloads(
+      @RequestParam Long studentId, @RequestParam String academicYear) {
+    return taskService.getTaskWorkloadsByStudentId(studentId, academicYear);
+  }
+
   @PostMapping
   public Task createTask(@RequestBody TaskCreate task) {
     return taskService.addTask(task);
+  }
+
+  @PostMapping("import")
+  public List<Task> importTasks(@RequestBody TaskImport tasks) {
+    return taskService.importTasks(tasks);
   }
 
   @DeleteMapping("{id}")

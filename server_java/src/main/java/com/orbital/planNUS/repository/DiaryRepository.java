@@ -8,5 +8,6 @@ import java.util.List;
 
 public interface DiaryRepository extends JpaRepository<Diary, Long> {
   List<Diary> findByStudentId(Long studentId);
+
   List<Diary> findByStudentIdAndDate(Long studentId, LocalDate date);
 }

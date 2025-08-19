@@ -15,13 +15,13 @@ import java.time.LocalDate;
 @AllArgsConstructor
 @Builder
 public class Deadline {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+  @Id
+  @GeneratedValue(strategy = GenerationType.IDENTITY)
+  private Long id;
 
-    private Long studentId;
-    private String name;
-    private String module;
-    private LocalDate date;
-    private String description;
+  private Long studentId;
+  private String name;
+  private String module;
+  private LocalDate date;
+  private String description;
 }
