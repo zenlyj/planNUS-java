@@ -9,7 +9,6 @@ import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
@@ -64,18 +63,20 @@ public class AuthController {
     String accessToken = jwtService.generateAccessToken(userDetails);
     var user = userRepository.findByEmail(req.email()).orElseThrow();
     var refreshToken = refreshTokenService.mint(user);
-    return ResponseEntity.ok(new AuthResponse(accessToken, refreshToken.getToken()));
+    return ResponseEntity.ok(new AuthResponse(accessToken, refreshToken.getToken(), user.getId()));
   }
 
   @PostMapping("/refresh")
   public ResponseEntity<AuthResponse> refresh(@Valid @RequestBody TokenRefreshRequest req) {
     var refreshToken = refreshTokenService.verifyUsable(req.refreshToken());
-    UserDetails user = userDetailsService.loadUserByUsername(refreshToken.getUser().getEmail());
-    String accessToken = jwtService.generateAccessToken(user);
+    var user = refreshToken.getUser();
+    var userDetails = userDetailsService.loadUserByUsername(user.getEmail());
+    String accessToken = jwtService.generateAccessToken(userDetails);
     // Optional rotation (recommended): revoke old, mint new
     refreshTokenService.revoke(refreshToken);
-    var newRefreshToken = refreshTokenService.mint(refreshToken.getUser());
-    return ResponseEntity.ok(new AuthResponse(accessToken, newRefreshToken.getToken()));
+    var newRefreshToken = refreshTokenService.mint(user);
+    return ResponseEntity.ok(
+        new AuthResponse(accessToken, newRefreshToken.getToken(), user.getId()));
   }
 
   @PostMapping("/logout")

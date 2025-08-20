@@ -1,14 +1,14 @@
 package com.orbital.planNUS.deadline;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
+import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDate;
 
 @Entity
+@Table(
+    name = "deadlines",
+    indexes = {@Index(name = "idx_deadlines_student_id", columnList = "studentId")})
 @Getter
 @Setter
 @NoArgsConstructor
@@ -19,9 +19,13 @@ public class Deadline {
   @GeneratedValue(strategy = GenerationType.IDENTITY)
   private Long id;
 
+  @Column(nullable = false)
   private Long studentId;
+
+  @Column(nullable = false)
+  private LocalDate date;
+
   private String name;
   private String module;
-  private LocalDate date;
   private String description;
 }
