@@ -8,7 +8,7 @@ import java.util.List;
 public class SemesterCalendar {
   public static List<List<LocalDate>> weeklyDates(int numWeeks, LocalDate startDate) {
     List<List<LocalDate>> weeks = new ArrayList<>();
-    LocalDate date = startDate;
+    var date = startDate;
     for (int i = 1; i <= numWeeks; i++) {
       List<LocalDate> week = new ArrayList<>();
       if (i == 7) {

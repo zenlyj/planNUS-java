@@ -1,6 +1,5 @@
 package com.orbital.planNUS.adapter;
 
-import com.orbital.planNUS.dto.lesson.Lesson;
 import org.springframework.stereotype.Component;
 
 import java.net.URI;

@@ -4,7 +4,6 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.orbital.planNUS.dto.lesson.Lesson;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
@@ -36,11 +35,11 @@ public class NUSModClient {
     for (Lesson lesson : lessons) {
       try {
         String module = lesson.getModuleCode();
-        URI uri = new URI(String.format(moduleEndpoint, base, academicYear, module));
+        var uri = new URI(String.format(moduleEndpoint, base, academicYear, module));
         String response = fetchBody(uri);
         ArrayNode timetable = getTimetable(response, semesterNum);
-        int workload = getWorkLoad(response);
-        boolean isFilled = false;
+        int workload = getWorkLoadInHours(response);
+        var isFilled = false;
 
         for (JsonNode lessonNode : timetable) {
           String lessonId = lessonNode.get("classNo").asText();
@@ -55,7 +54,7 @@ public class NUSModClient {
           }
 
           if (isFilled) {
-            Lesson additionalLesson = new Lesson(lesson);
+            var additionalLesson = new Lesson(lesson);
             additionalLesson.setStartTime(startTime);
             additionalLesson.setEndTime(endTime);
             additionalLesson.setDay(day);
@@ -80,19 +79,19 @@ public class NUSModClient {
 
   public int mapModuleToWorkload(String module, String academicYear) {
     try {
-      URI uri = new URI(String.format(moduleEndpoint, base, academicYear, module));
+      var uri = new URI(String.format(moduleEndpoint, base, academicYear, module));
       String response = fetchBody(uri);
-      return getWorkLoad(response);
+      return getWorkLoadInHours(response);
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
   }
 
-  private int getWorkLoad(String response) throws JsonProcessingException {
+  private int getWorkLoadInHours(String response) throws JsonProcessingException {
     JsonNode node = objectMapper.readTree(response);
     ArrayNode workloadNode = (ArrayNode) node.get("workload");
 
-    int workload = 0;
+    var workload = 0;
     for (int i = 0; i < workloadNode.size(); i++) {
       workload += workloadNode.get(i).asInt();
     }
@@ -101,13 +100,13 @@ public class NUSModClient {
 
   private ArrayNode getTimetable(String response, int semesterNum) throws JsonProcessingException {
     JsonNode node = objectMapper.readTree(response);
-    ArrayNode semesterData = (ArrayNode) node.get("semesterData");
+    var semesterData = (ArrayNode) node.get("semesterData");
     JsonNode data = semesterData.get(semesterNum - 1);
     return (ArrayNode) data.get("timetable");
   }
 
   private List<Integer> getWeeks(JsonNode lessonNode) {
-    ArrayNode weeks = (ArrayNode) lessonNode.get("weeks");
+    var weeks = (ArrayNode) lessonNode.get("weeks");
     return weeks.valueStream().map(JsonNode::asInt).toList();
   }
 
@@ -119,7 +118,7 @@ public class NUSModClient {
     if (response.statusCode() >= 200 && response.statusCode() < 300) {
       return response.body();
     } else {
-      throw new IOException("Failed to fetch " + uri + ": " + response.statusCode());
+      throw new IOException("Failed to fetch %s: %d".formatted(uri, response.statusCode()));
     }
   }
 }
