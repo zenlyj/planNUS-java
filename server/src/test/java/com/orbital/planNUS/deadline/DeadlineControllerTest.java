@@ -1,84 +1,140 @@
 package com.orbital.planNUS.deadline;
 
-import org.junit.jupiter.api.BeforeEach;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.orbital.planNUS.config.JwtAuthFilter;
+import com.orbital.planNUS.config.JwtService;
 import org.junit.jupiter.api.Test;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
-import org.springframework.http.HttpStatus;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.FilterType;
+import org.springframework.http.MediaType;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.LocalDate;
 import java.util.List;
 
 import static com.orbital.planNUS.deadline.DeadlineFixture.deadlineFixture;
-import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+
+@WebMvcTest(
+    controllers = DeadlineController.class,
+    excludeFilters = {
+      @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = JwtAuthFilter.class),
+      @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = JwtService.class)
+    })
+@AutoConfigureMockMvc(addFilters = false)
 public class DeadlineControllerTest {
-  @Mock private DeadlineService deadlineService;
+  @Autowired private MockMvc mockMvc;
 
-  @InjectMocks private DeadlineController deadlineController;
+  @Autowired private ObjectMapper mapper;
 
-  @BeforeEach
-  void setup() {
-    MockitoAnnotations.openMocks(this);
+  @MockitoBean private DeadlineService deadlineService;
+
+  private final Long STUDENT_ID = 1L;
+  private final Long BAD_STUDENT_ID = -1L;
+  private final Long ID = 1L;
+  private final Long BAD_ID = -1L;
+
+  @Test
+  void shouldReturnDeadlines() throws Exception {
+    final var deadline = deadlineFixture(STUDENT_ID);
+    when(deadlineService.getDeadlinesByStudentId(STUDENT_ID)).thenReturn(List.of(deadline));
+
+    mockMvc
+        .perform(get("/api/deadlines", STUDENT_ID).param("studentId", STUDENT_ID.toString()))
+        .andExpect(status().isOk())
+        .andExpect(content().json(mapper.writeValueAsString(List.of(deadline))));
   }
 
   @Test
-  void shouldReturnDeadlines() {
-    final var studentId = 1L;
-    final var deadline = deadlineFixture(studentId);
-    when(deadlineService.getDeadlinesByStudentId(studentId)).thenReturn(List.of(deadline));
+  void shouldNotReturnDeadlines() throws Exception {
+    final var deadline = deadlineFixture(BAD_STUDENT_ID);
+    when(deadlineService.getDeadlinesByStudentId(BAD_STUDENT_ID)).thenReturn(List.of(deadline));
 
-    final var response = deadlineController.getDeadlines(studentId);
-
-    assertEquals(HttpStatus.OK.value(), response.getStatusCode().value());
-    assertEquals(List.of(deadline), response.getBody());
-
-    verify(deadlineService, times(1)).getDeadlinesByStudentId(studentId);
+    mockMvc
+        .perform(
+            get("/api/deadlines", BAD_STUDENT_ID).param("studentId", BAD_STUDENT_ID.toString()))
+        .andExpect(status().isBadRequest());
   }
 
   @Test
-  void shouldCreateDeadline() {
-    final var studentId = 1L;
+  void shouldCreateDeadline() throws Exception {
     final var deadlineCreateRequest =
-        new DeadlineCreateRequest(studentId, "lab 1", LocalDate.of(2025, 12, 12), "cs101", "test");
-    final var deadline = deadlineFixture(studentId);
+        new DeadlineCreateRequest(STUDENT_ID, "lab 1", LocalDate.of(2025, 12, 12), "cs101", "test");
+    final var deadline = deadlineFixture(STUDENT_ID);
     when(deadlineService.addDeadline(deadlineCreateRequest)).thenReturn(deadline);
 
-    final var response = deadlineController.createDeadline(deadlineCreateRequest);
-
-    assertEquals(HttpStatus.OK.value(), response.getStatusCode().value());
-    assertEquals(deadline, response.getBody());
-
-    verify(deadlineService, times(1)).addDeadline(deadlineCreateRequest);
+    mockMvc
+        .perform(
+            post("/api/deadlines")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(mapper.writeValueAsString(deadlineCreateRequest)))
+        .andExpect(status().isOk())
+        .andExpect(content().json(mapper.writeValueAsString(deadline)));
   }
 
   @Test
-  void shouldDeleteDeadline() {
-    final var id = 1L;
+  void shouldNotCreateDeadline() throws Exception {
+    final var deadlineCreateRequest =
+        new DeadlineCreateRequest(null, "lab 1", LocalDate.of(2025, 12, 12), "cs101", "test");
+    final var deadline = deadlineFixture(STUDENT_ID);
+    when(deadlineService.addDeadline(deadlineCreateRequest)).thenReturn(deadline);
 
-    final var response = deadlineController.deleteDeadline(id);
-
-    assertEquals(HttpStatus.NO_CONTENT.value(), response.getStatusCode().value());
-    assertNull(response.getBody());
-
-    verify(deadlineService, times(1)).deleteDeadline(id);
+    mockMvc
+        .perform(
+            post("/api/deadlines")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(mapper.writeValueAsString(deadlineCreateRequest)))
+        .andExpect(status().isBadRequest());
   }
 
   @Test
-  void shouldUpdateDeadline() {
-    final var id = 1L;
+  void shouldDeleteDeadline() throws Exception {
+    mockMvc
+        .perform(delete("/api/deadlines/{id}", ID))
+        .andExpect(status().isNoContent())
+        .andExpect(content().string(""));
+  }
+
+  @Test
+  void shouldNotDeleteDeadline() throws Exception {
+    mockMvc.perform(delete("/api/deadlines/{id}", BAD_ID)).andExpect(status().isBadRequest());
+  }
+
+  @Test
+  void shouldUpdateDeadline() throws Exception {
     final var deadlineUpdateRequest =
         new DeadlineUpdateRequest("lab 1", LocalDate.of(2025, 12, 12), "cs101", "test");
-    final var deadline = deadlineFixture(1L);
-    when(deadlineService.updateDeadline(id, deadlineUpdateRequest)).thenReturn(deadline);
+    final var deadline = deadlineFixture(STUDENT_ID);
+    when(deadlineService.updateDeadline(ID, deadlineUpdateRequest)).thenReturn(deadline);
 
-    final var response = deadlineController.updateDeadline(id, deadlineUpdateRequest);
+    mockMvc
+        .perform(
+            put("/api/deadlines/{id}", ID)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(mapper.writeValueAsString(deadlineUpdateRequest)))
+        .andExpect(status().isOk())
+        .andExpect(content().json(mapper.writeValueAsString(deadline)));
+  }
 
-    assertEquals(HttpStatus.OK.value(), response.getStatusCode().value());
-    assertEquals(deadline, response.getBody());
+  @Test
+  void shouldNotUpdateDeadline() throws Exception {
+    final var deadlineUpdateRequest =
+        new DeadlineUpdateRequest(null, LocalDate.of(2025, 12, 12), "cs101", "test");
+    final var deadline = deadlineFixture(STUDENT_ID);
+    when(deadlineService.updateDeadline(ID, deadlineUpdateRequest)).thenReturn(deadline);
 
-    verify(deadlineService, times(1)).updateDeadline(id, deadlineUpdateRequest);
+    mockMvc
+        .perform(
+            put("/api/deadlines/{id}", ID)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(mapper.writeValueAsString(deadlineUpdateRequest)))
+        .andExpect(status().isBadRequest());
   }
 }

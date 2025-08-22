@@ -1,100 +1,160 @@
 package com.orbital.planNUS.diary;
 
-import org.junit.jupiter.api.BeforeEach;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.orbital.planNUS.config.JwtAuthFilter;
+import com.orbital.planNUS.config.JwtService;
 import org.junit.jupiter.api.Test;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
-import org.springframework.http.HttpStatus;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.FilterType;
+import org.springframework.http.MediaType;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.LocalDate;
 import java.util.List;
 
 import static com.orbital.planNUS.diary.DiaryFixture.diaryFixture;
 import static com.orbital.planNUS.diary.DiaryFixture.diaryViewResponseFixture;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.Mockito.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+@WebMvcTest(
+    controllers = DiaryController.class,
+    excludeFilters = {
+      @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = JwtAuthFilter.class),
+      @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = JwtService.class)
+    })
+@AutoConfigureMockMvc(addFilters = false)
 public class DiaryControllerTest {
-  @Mock private DiaryService diaryService;
+  @Autowired private MockMvc mockMvc;
 
-  @InjectMocks private DiaryController diaryController;
+  @Autowired private ObjectMapper mapper;
 
-  @BeforeEach
-  void setup() {
-    MockitoAnnotations.openMocks(this);
+  @MockitoBean private DiaryService diaryService;
+
+  private final Long STUDENT_ID = 1L;
+  private final Long BAD_STUDENT_ID = -1L;
+  private final Long ID = 1L;
+  private final Long BAD_ID = -1L;
+
+  @Test
+  void shouldGetStudentDiaries() throws Exception {
+    final var diaryViewResponse = diaryViewResponseFixture(STUDENT_ID);
+    when(diaryService.getDiariesByStudentId(STUDENT_ID)).thenReturn(List.of(diaryViewResponse));
+
+    mockMvc
+        .perform(get("/api/diaries", STUDENT_ID).param("studentId", STUDENT_ID.toString()))
+        .andExpect(status().isOk())
+        .andExpect(content().json(mapper.writeValueAsString(List.of(diaryViewResponse))));
   }
 
   @Test
-  void shouldGetStudentDiaries() {
-    final var studentId = 1L;
-    final var diaryViewResponse = diaryViewResponseFixture(studentId);
-    when(diaryService.getDiariesByStudentId(studentId)).thenReturn(List.of(diaryViewResponse));
+  void shouldNotGetStudentDiaries() throws Exception {
+    final var diaryViewResponse = diaryViewResponseFixture(BAD_STUDENT_ID);
+    when(diaryService.getDiariesByStudentId(BAD_STUDENT_ID)).thenReturn(List.of(diaryViewResponse));
 
-    final var response = diaryController.getDiaries(studentId);
-
-    assertEquals(HttpStatus.OK.value(), response.getStatusCode().value());
-    assertEquals(List.of(diaryViewResponse), response.getBody());
-
-    verify(diaryService, times(1)).getDiariesByStudentId(studentId);
+    mockMvc
+        .perform(get("/api/diaries", BAD_STUDENT_ID).param("studentId", BAD_STUDENT_ID.toString()))
+        .andExpect(status().isBadRequest());
   }
 
   @Test
-  void shouldGetStudentDiaryIfPresentElseCreate() {
-    final var studentId = 1L;
-    final var diaryViewResponse = diaryViewResponseFixture(studentId);
+  void shouldGetSertStudentDiary() throws Exception {
+    final var diaryViewResponse = diaryViewResponseFixture(STUDENT_ID);
     final var date = LocalDate.of(2025, 12, 12);
-    when(diaryService.getsertDiaryByStudentId(studentId, date)).thenReturn(diaryViewResponse);
+    when(diaryService.getsertDiaryByStudentId(STUDENT_ID, date)).thenReturn(diaryViewResponse);
 
-    final var response = diaryController.getsertDiary(studentId, date);
-
-    assertEquals(HttpStatus.OK.value(), response.getStatusCode().value());
-    assertEquals(diaryViewResponse, response.getBody());
-
-    verify(diaryService, times(1)).getsertDiaryByStudentId(studentId, date);
+    mockMvc
+        .perform(get("/api/diaries/{date}", date).param("studentId", STUDENT_ID.toString()))
+        .andExpect(status().isOk())
+        .andExpect(content().json(mapper.writeValueAsString(diaryViewResponse)));
   }
 
   @Test
-  void shouldCreateDiary() {
-    final var studentId = 1L;
+  void shouldNotGetSertStudentDiary() throws Exception {
+    final var diaryViewResponse = diaryViewResponseFixture(BAD_STUDENT_ID);
+    final var date = LocalDate.of(2025, 12, 12);
+    when(diaryService.getsertDiaryByStudentId(BAD_STUDENT_ID, date)).thenReturn(diaryViewResponse);
+
+    mockMvc
+        .perform(get("/api/diaries/{date}", date).param("studentId", BAD_STUDENT_ID.toString()))
+        .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  void shouldCreateDiary() throws Exception {
     final var diaryCreateRequest =
-        new DiaryCreateRequest(studentId, LocalDate.of(2025, 12, 12), "test");
-    final var diary = diaryFixture(studentId);
+        new DiaryCreateRequest(STUDENT_ID, LocalDate.of(2025, 12, 12), "test");
+    final var diary = diaryFixture(STUDENT_ID);
     when(diaryService.addDiary(diaryCreateRequest)).thenReturn(diary);
 
-    final var response = diaryController.createDiary(diaryCreateRequest);
-
-    assertEquals(HttpStatus.OK.value(), response.getStatusCode().value());
-    assertEquals(diary, response.getBody());
-
-    verify(diaryService, times(1)).addDiary(diaryCreateRequest);
+    mockMvc
+        .perform(
+            post("/api/diaries")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(mapper.writeValueAsString(diaryCreateRequest)))
+        .andExpect(status().isOk())
+        .andExpect(content().json(mapper.writeValueAsString(diary)));
   }
 
   @Test
-  void shouldDeleteDiary() {
-    final var id = 1L;
+  void shouldNotCreateDiary() throws Exception {
+    final var diaryCreateRequest = new DiaryCreateRequest(null, LocalDate.of(2025, 12, 12), "test");
+    final var diary = diaryFixture(STUDENT_ID);
+    when(diaryService.addDiary(diaryCreateRequest)).thenReturn(diary);
 
-    final var response = diaryController.deleteDiary(id);
-
-    assertEquals(HttpStatus.NO_CONTENT.value(), response.getStatusCode().value());
-    assertNull(response.getBody());
-
-    verify(diaryService, times(1)).deleteDiary(id);
+    mockMvc
+        .perform(
+            post("/api/diaries")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(mapper.writeValueAsString(diaryCreateRequest)))
+        .andExpect(status().isBadRequest());
   }
 
   @Test
-  void shouldUpdateDiary() {
-    final var id = 1L;
+  void shouldDeleteDiary() throws Exception {
+    mockMvc
+        .perform(delete("/api/diaries/{id}", ID))
+        .andExpect(status().isNoContent())
+        .andExpect(content().string(""));
+  }
+
+  @Test
+  void shouldNotDeleteDiary() throws Exception {
+    mockMvc.perform(delete("/api/diaries/{id}", BAD_ID)).andExpect(status().isBadRequest());
+  }
+
+  @Test
+  void shouldUpdateDiary() throws Exception {
     final var diaryUpdateRequest = new DiaryUpdateRequest("test");
-    final var diary = diaryFixture(1L);
-    when(diaryService.updateDiary(id, diaryUpdateRequest)).thenReturn(diary);
+    final var diary = diaryFixture(STUDENT_ID);
+    when(diaryService.updateDiary(ID, diaryUpdateRequest)).thenReturn(diary);
 
-    final var response = diaryController.updateDiary(id, diaryUpdateRequest);
+    mockMvc
+        .perform(
+            patch("/api/diaries/{id}", ID)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(mapper.writeValueAsString(diaryUpdateRequest)))
+        .andExpect(status().isOk())
+        .andExpect(content().json(mapper.writeValueAsString(diary)));
+  }
 
-    assertEquals(HttpStatus.OK.value(), response.getStatusCode().value());
-    assertEquals(diary, response.getBody());
+  @Test
+  void shouldNotUpdateDiary() throws Exception {
+    final var diaryUpdateRequest = new DiaryUpdateRequest("test");
+    final var diary = diaryFixture(STUDENT_ID);
+    when(diaryService.updateDiary(BAD_ID, diaryUpdateRequest)).thenReturn(diary);
 
-    verify(diaryService, times(1)).updateDiary(id, diaryUpdateRequest);
+    mockMvc
+        .perform(
+            patch("/api/diaries/{id}", BAD_ID)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(mapper.writeValueAsString(diaryUpdateRequest)))
+        .andExpect(status().isBadRequest());
   }
 }

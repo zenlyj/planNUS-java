@@ -21,6 +21,9 @@ public class DeadlineServiceTest {
 
   @InjectMocks private DeadlineService deadlineService;
 
+  private final Long STUDENT_ID = 1L;
+  private final Long ID = 1L;
+
   @BeforeEach
   void setup() {
     MockitoAnnotations.openMocks(this);
@@ -28,21 +31,20 @@ public class DeadlineServiceTest {
 
   @Test
   void shouldGetDeadlinesByStudentId() {
-    final var studentId = 1L;
-    final var deadline = deadlineFixture(studentId);
-    when(deadlineRepository.findByStudentId(studentId)).thenReturn(List.of(deadline));
+    final var deadline = deadlineFixture(STUDENT_ID);
+    when(deadlineRepository.findByStudentId(STUDENT_ID)).thenReturn(List.of(deadline));
 
-    final var studentDeadlines = deadlineService.getDeadlinesByStudentId(studentId);
+    final var studentDeadlines = deadlineService.getDeadlinesByStudentId(STUDENT_ID);
 
     assertEquals(List.of(deadline), studentDeadlines);
 
-    verify(deadlineRepository, times(1)).findByStudentId(studentId);
+    verify(deadlineRepository, times(1)).findByStudentId(STUDENT_ID);
   }
 
   @Test
   void shouldCreateNewDeadline() {
     final var deadlineCreateRequest =
-        new DeadlineCreateRequest(1L, "lab 1", LocalDate.of(2025, 12, 12), "cs101", "test");
+        new DeadlineCreateRequest(STUDENT_ID, "lab 1", LocalDate.of(2025, 12, 12), "cs101", "test");
 
     final var deadline = deadlineService.addDeadline(deadlineCreateRequest);
 
@@ -57,30 +59,27 @@ public class DeadlineServiceTest {
 
   @Test
   void shouldDeleteDeadline() {
-    final var id = 1L;
+    deadlineService.deleteDeadline(ID);
 
-    deadlineService.deleteDeadline(id);
-
-    verify(deadlineRepository, times(1)).deleteById(id);
+    verify(deadlineRepository, times(1)).deleteById(ID);
   }
 
   @Test
   void shouldUpdateDeadlineIfFound() {
-    final var id = 1L;
     final var deadlineUpdateRequest =
-        new DeadlineUpdateRequest("old lab 1", LocalDate.of(2025, 12, 12), "old cs101", "old");
+        new DeadlineUpdateRequest("lab 1", LocalDate.of(2025, 12, 12), "cs101", "new");
     final var oldDeadline =
         Deadline.builder()
-            .id(id)
-            .studentId(1L)
+            .id(ID)
+            .studentId(STUDENT_ID)
             .date(LocalDate.of(2025, 12, 10))
-            .name("lab 1")
-            .module("cs101")
-            .description("new")
+            .name("old lab 1")
+            .module("old cs101")
+            .description("old")
             .build();
-    when(deadlineRepository.findById(id)).thenReturn(Optional.of(oldDeadline));
+    when(deadlineRepository.findById(ID)).thenReturn(Optional.of(oldDeadline));
 
-    final var deadline = deadlineService.updateDeadline(id, deadlineUpdateRequest);
+    final var deadline = deadlineService.updateDeadline(ID, deadlineUpdateRequest);
 
     assertEquals(deadlineUpdateRequest.name(), deadline.getName());
     assertEquals(deadlineUpdateRequest.module(), deadline.getModule());
@@ -92,29 +91,27 @@ public class DeadlineServiceTest {
 
   @Test
   void shouldNotUpdateDeadlineIfNotFound() {
-    final var id = 1L;
     final var deadlineUpdateRequest =
-        new DeadlineUpdateRequest("old lab 1", LocalDate.of(2025, 12, 12), "old cs101", "old");
-    when(deadlineRepository.findById(id)).thenThrow(new AppException("id", "Deadline not found"));
+        new DeadlineUpdateRequest("lab 1", LocalDate.of(2025, 12, 12), "cs101", "new");
+    when(deadlineRepository.findById(ID)).thenThrow(new AppException("id", "Deadline not found"));
 
     assertThrows(
-        AppException.class, () -> deadlineService.updateDeadline(id, deadlineUpdateRequest));
+        AppException.class, () -> deadlineService.updateDeadline(ID, deadlineUpdateRequest));
 
     verify(deadlineRepository, never()).save(any());
   }
 
   @Test
   void shouldGetDeadlinesByStudentIdAndDate() {
-    final var studentId = 1L;
-    final var deadline = deadlineFixture(studentId);
-    when(deadlineRepository.findByStudentIdAndDate(studentId, deadline.getDate()))
+    final var deadline = deadlineFixture(STUDENT_ID);
+    when(deadlineRepository.findByStudentIdAndDate(STUDENT_ID, deadline.getDate()))
         .thenReturn(List.of(deadline));
 
     final var deadlines =
-        deadlineService.getDeadlinesByStudentIdAndDate(studentId, deadline.getDate());
+        deadlineService.getDeadlinesByStudentIdAndDate(STUDENT_ID, deadline.getDate());
 
     assertEquals(List.of(deadline), deadlines);
 
-    verify(deadlineRepository, times(1)).findByStudentIdAndDate(studentId, deadline.getDate());
+    verify(deadlineRepository, times(1)).findByStudentIdAndDate(STUDENT_ID, deadline.getDate());
   }
 }

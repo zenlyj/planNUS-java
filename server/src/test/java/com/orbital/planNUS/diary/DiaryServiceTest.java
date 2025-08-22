@@ -29,6 +29,9 @@ public class DiaryServiceTest {
 
   @InjectMocks private DiaryService diaryService;
 
+  private final Long STUDENT_ID = 1L;
+  private final Long ID = 1L;
+
   @BeforeEach
   void setup() {
     MockitoAnnotations.openMocks(this);
@@ -38,44 +41,41 @@ public class DiaryServiceTest {
 
   @Test
   void shouldGetDiariesByStudentId() {
-    final var studentId = 1L;
-    final var diary = diaryFixture(studentId);
-    when(diaryRepository.findByStudentId(studentId)).thenReturn(List.of(diary));
+    final var diary = diaryFixture(STUDENT_ID);
+    when(diaryRepository.findByStudentId(STUDENT_ID)).thenReturn(List.of(diary));
 
-    final var diaryViewResponses = diaryService.getDiariesByStudentId(studentId);
+    final var diaryViewResponses = diaryService.getDiariesByStudentId(STUDENT_ID);
 
     assertEquals(List.of(diaryViewResponseFixture(diary)), diaryViewResponses);
 
-    verify(diaryRepository, times(1)).findByStudentId(studentId);
+    verify(diaryRepository, times(1)).findByStudentId(STUDENT_ID);
   }
 
   @Test
   void shouldGetExistingStudentDiary() {
-    final var studentId = 1L;
-    final var diary = diaryFixture(studentId);
-    when(diaryRepository.findByStudentIdAndDate(studentId, diary.getDate()))
+    final var diary = diaryFixture(STUDENT_ID);
+    when(diaryRepository.findByStudentIdAndDate(STUDENT_ID, diary.getDate()))
         .thenReturn(List.of(diary));
 
-    final var diaryViewResponse = diaryService.getsertDiaryByStudentId(studentId, diary.getDate());
+    final var diaryViewResponse = diaryService.getsertDiaryByStudentId(STUDENT_ID, diary.getDate());
 
     assertEquals(diaryViewResponseFixture(diary), diaryViewResponse);
 
-    verify(diaryRepository, times(1)).findByStudentIdAndDate(studentId, diary.getDate());
+    verify(diaryRepository, times(1)).findByStudentIdAndDate(STUDENT_ID, diary.getDate());
   }
 
   @Test
   void shouldCreateDiaryIfNotExist() {
-    final var studentId = 1L;
     final var date = LocalDate.of(2025, 12, 12);
-    when(diaryRepository.findByStudentIdAndDate(studentId, date)).thenReturn(List.of());
+    when(diaryRepository.findByStudentIdAndDate(STUDENT_ID, date)).thenReturn(List.of());
 
-    final var diaryViewResponse = diaryService.getsertDiaryByStudentId(studentId, date);
+    final var diaryViewResponse = diaryService.getsertDiaryByStudentId(STUDENT_ID, date);
 
     assertEquals(
-        diaryViewResponseFixture(Diary.builder().studentId(studentId).date(date).note("").build()),
+        diaryViewResponseFixture(Diary.builder().studentId(STUDENT_ID).date(date).note("").build()),
         diaryViewResponse);
 
-    verify(diaryRepository, times(1)).findByStudentIdAndDate(studentId, date);
+    verify(diaryRepository, times(1)).findByStudentIdAndDate(STUDENT_ID, date);
   }
 
   @Test
@@ -93,23 +93,20 @@ public class DiaryServiceTest {
 
   @Test
   void shouldDeleteDiary() {
-    final var id = 1L;
+    diaryService.deleteDiary(ID);
 
-    diaryService.deleteDiary(id);
-
-    verify(diaryRepository, times(1)).deleteById(id);
+    verify(diaryRepository, times(1)).deleteById(ID);
   }
 
   @Test
   void shouldUpdateDiaryIfFound() {
-    final var id = 1L;
     final var diaryUpdateRequest = new DiaryUpdateRequest("new");
     final var oldDiary =
-        Diary.builder().id(id).studentId(1L).date(LocalDate.of(2025, 12, 12)).note("old").build();
+        Diary.builder().id(ID).studentId(1L).date(LocalDate.of(2025, 12, 12)).note("old").build();
 
-    when(diaryRepository.findById(id)).thenReturn(Optional.of(oldDiary));
+    when(diaryRepository.findById(ID)).thenReturn(Optional.of(oldDiary));
 
-    final var diary = diaryService.updateDiary(id, diaryUpdateRequest);
+    final var diary = diaryService.updateDiary(ID, diaryUpdateRequest);
 
     assertEquals(diaryUpdateRequest.note(), diary.getNote());
 
@@ -118,11 +115,10 @@ public class DiaryServiceTest {
 
   @Test
   void shouldNotUpdateDiaryIfNotFound() {
-    final var id = 1L;
     final var diaryUpdateRequest = new DiaryUpdateRequest("new");
-    when(diaryRepository.findById(id)).thenThrow(new AppException("id", "Diary not found"));
+    when(diaryRepository.findById(ID)).thenThrow(new AppException("id", "Diary not found"));
 
-    assertThrows(AppException.class, () -> diaryService.updateDiary(id, diaryUpdateRequest));
+    assertThrows(AppException.class, () -> diaryService.updateDiary(ID, diaryUpdateRequest));
 
     verify(diaryRepository, never()).save(any());
   }

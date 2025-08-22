@@ -3,6 +3,7 @@ package com.orbital.planNUS.diary;
 import com.orbital.planNUS.deadline.DeadlineService;
 import com.orbital.planNUS.exception.AppException;
 import com.orbital.planNUS.task.TaskService;
+import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -22,11 +23,13 @@ public class DiaryService {
     this.deadlineService = deadlineService;
   }
 
+  @Transactional
   public List<DiaryViewResponse> getDiariesByStudentId(Long studentId) {
     var diaries = diaryRepository.findByStudentId(studentId);
     return diaries.stream().map(this::mapDiaryToDiaryView).toList();
   }
 
+  @Transactional
   public DiaryViewResponse getsertDiaryByStudentId(Long studentId, LocalDate date) {
     Optional<Diary> diary =
         diaryRepository.findByStudentIdAndDate(studentId, date).stream().findFirst();
